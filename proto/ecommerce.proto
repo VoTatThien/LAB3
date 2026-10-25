@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package ecommerce.v1;
+
+// Public requests use REST/JSON, internal queries use gRPC/Protobuf,
+// and Saga events use Kafka/JSON. The event messages below describe the
+// Kafka payloads but are not used to serialize Kafka records.
+
+service AuthInternal {
+  rpc GetDiscount(DiscountRequest) returns (DiscountQuote);
+}
+
+service CatalogInternal {
+  rpc GetProductSnapshots(ProductIds) returns (ProductSnapshots);
+}
+
+message DiscountRequest {
+  int32 user_id = 1;
+}
+
+message DiscountQuote {
+  int32 score = 1;
+  string tier = 2;
+  int32 percent = 3;
+}
+
+message ProductIds {
+  repeated int32 ids = 1;
+}
+
+message ProductSnapshots {
+  repeated ProductSnapshot products = 1;
+}
+
+message ProductSnapshot {
+  int32 id = 1;
+  string name = 2;
+  string price = 3; // Decimal amount, e.g. "1599.00"; never a floating-point value.
+}
+
+message OrderItem {
+  int32 product_id = 1;
+  int32 quantity = 2;
+}
+
+// Kafka topic: order.created
+message OrderCreatedData {
+  int32 order_id = 1;
+  int32 user_id = 2;
+  repeated OrderItem items = 3;
+}
+
+message OrderCreatedEvent {
+  string id = 1;          // UUID used by ProcessedEvent for deduplication.
+  string type = 2;        // "order.created"
+  string occurred_at = 3; // ISO 8601 timestamp.
+  OrderCreatedData data = 4;
+}
+
+// Kafka topic: inventory.reserved
+message InventoryReservedData {
+  int32 order_id = 1;
+}
+
+message InventoryReservedEvent {
+  string id = 1;
+  string type = 2; // "inventory.reserved"
+  string occurred_at = 3;
+  InventoryReservedData data = 4;
+}
+
+// Kafka topic: inventory.rejected
+message InventoryRejectedData {
+  int32 order_id = 1;
+  string reason = 2;
+}
+
+message InventoryRejectedEvent {
+  string id = 1;
+  string type = 2; // "inventory.rejected"
+  string occurred_at = 3;
+  InventoryRejectedData data = 4;
+}
+
+// Kafka topic: order.confirmed
+message OrderConfirmedData {
+  int32 order_id = 1;
+  int32 user_id = 2;
+  string total = 3; // Decimal amount preserved as a string.
+}
+
+message OrderConfirmedEvent {
+  string id = 1;
+  string type = 2; // "order.confirmed"
+  string occurred_at = 3;
+  OrderConfirmedData data = 4;
+}
+
+// Kafka topic: order.cancelled
+message OrderCancelledData {
+  int32 order_id = 1;
+  optional string reason = 2;
+}
+
+message OrderCancelledEvent {
+  string id = 1;
+  string type = 2; // "order.cancelled"
+  string occurred_at = 3;
+  OrderCancelledData data = 4;
+}
+
+// Kafka topic: shipment.created
+message ShipmentCreatedData {
+  int32 order_id = 1;
+}
+
+message ShipmentCreatedEvent {
+  string id = 1;
+  string type = 2; // "shipment.created"
+  string occurred_at = 3;
+  ShipmentCreatedData data = 4;
+}
+
+// Kafka topic: shipment.cancelled
+message ShipmentCancelledData {
+  int32 order_id = 1;
+}
+
+message ShipmentCancelledEvent {
+  string id = 1;
+  string type = 2; // "shipment.cancelled"
+  string occurred_at = 3;
+  ShipmentCancelledData data = 4;
+}
